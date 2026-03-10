@@ -5,6 +5,7 @@ from app.routes.analytics import router as analytics_router
 from app.routes.wellness import router as wellness_router      # Wellness tracking
 from app.routes.growth import router as growth_router          # Growth & motivation
 from app.logger import logger
+from app.routes import admin
 
 # -------------------------
 # Create FastAPI App
@@ -43,6 +44,8 @@ logger.info("✅ Wellness router registered at /wellness")
 # Growth & motivation (goals, fears, prompts, kindness)
 app.include_router(growth_router, prefix="/growth", tags=["Growth & Motivation"])
 logger.info("✅ Growth router registered at /growth")
+
+app.include_router(admin.router)
 
 # -------------------------
 # Root Endpoint
