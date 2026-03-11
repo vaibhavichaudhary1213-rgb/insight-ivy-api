@@ -4,8 +4,8 @@ from app.routes.mood import router as mood_router
 from app.routes.analytics import router as analytics_router
 from app.routes.wellness import router as wellness_router      # Wellness tracking
 from app.routes.growth import router as growth_router          # Growth & motivation
-from app.logger import logger
 from app.routes import admin
+from app.logger import logger
 
 # -------------------------
 # Create FastAPI App
@@ -45,7 +45,9 @@ logger.info("✅ Wellness router registered at /wellness")
 app.include_router(growth_router, prefix="/growth", tags=["Growth & Motivation"])
 logger.info("✅ Growth router registered at /growth")
 
-app.include_router(admin.router)
+# Admin routes (no prefix needed as it's defined in the router)
+app.include_router(admin.router)  # admin.py has prefix="/admin" already
+logger.info("✅ Admin router registered at /admin")
 
 # -------------------------
 # Root Endpoint
@@ -80,6 +82,11 @@ def root():
                 "gratitude": "/growth/gratitude/ - Micro-gratitude",
                 "appreciation": "/growth/appreciation/ - Self-appreciation",
                 "kindness": "/growth/kindness/ - Kindness challenges"
+            },
+            "admin": {
+                "login": "/admin/login - Admin authentication",
+                "stats": "/admin/stats - Get system statistics",
+                "track": "/admin/track/user - Track user activity"
             }
         },
         "documentation": "/docs or /redoc for API documentation"
@@ -99,7 +106,8 @@ def health_check():
             "mood": "active",
             "analytics": "active",
             "wellness": "active",
-            "growth": "active"
+            "growth": "active",
+            "admin": "active"
         },
         "timestamp": logger.get_timestamp() if hasattr(logger, 'get_timestamp') else "active"
     }
@@ -113,7 +121,7 @@ async def startup_event():
     Actions to perform when the application starts
     """
     logger.info("🚀 Happiness API is starting up...")
-    logger.info("Features loaded: Mood Analysis, Analytics, Wellness Tracking, Growth & Motivation")
+    logger.info("Features loaded: Mood Analysis, Analytics, Wellness Tracking, Growth & Motivation, Admin Dashboard")
     logger.info("All systems ready! 🌈")
 
 # -------------------------
