@@ -1,9 +1,17 @@
-# At the top of your file, update the token storage
-import secrets
+# app/routes/admin.py
+from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from fastapi import HTTPException, status
+import os  # <-- THIS IS MISSING - ADD THIS LINE
+import secrets
+from typing import Optional
+from ..database import SessionLocal, User, Activity, Reflection, Goal
 
-# Store tokens with expiration (use environment variable in production)
+router = APIRouter(prefix="/admin", tags=["admin"])
+security = HTTPBearer(auto_error=False)
+
+# Now this will work
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", secrets.token_urlsafe(32))
 
