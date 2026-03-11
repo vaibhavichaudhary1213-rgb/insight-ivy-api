@@ -1,13 +1,53 @@
 # app/database.py
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, JSON
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, JSON, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import os
+import logging
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-engine = create_engine(DATABASE_URL)
+# Get database URL from environment
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    logger.error("❌ DATABASE_URL environment variable is not set!")
+    # For local development only
+    DATABASE_URL = "sqlite:///./app.db"
+    logger.warning(f"Using SQLite fallback: {DATABASE_URL}")
+
+logger.info(f"Connecting to database...")
+
+# Handle different database types
+connect_args = {}
+if DATABASE_URL and DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+else:
+    # For PostgreSQL, ensure SSL is used
+    if DATABASE_URL and "sslmode" not in DATABASE_URL:
+        separator = "?" if "?" not in DATABASE_URL else "&"
+        DATABASE_URL += f"{separator}sslmode=require"
+
+# Create engine
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    echo=False
+)
+
+# Test connection
+try:
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+        logger.info("✅ Database connection successful!")
+except Exception as e:
+    logger.error(f"❌ Database connection failed: {e}")
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -29,7 +69,7 @@ class Activity(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True)
-    activity_type = Column(String)  # 'mood', 'reflection', 'goal', etc.
+    activity_type = Column(String)
     activity_data = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -55,4 +95,12 @@ class Goal(Base):
     completed_at = Column(DateTime, nullable=True)
 
 # Create tables
-Base.metadata.create_all(bind=engine)
+def init_db():
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables created/verified")
+    except Exception as e:
+        logger.error(f"❌ Failed to create tables: {e}")
+
+# Initialize on import
+init_db()
