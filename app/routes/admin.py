@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import os
 import secrets
 from typing import Optional
+from sqlalchemy import func 
 
 print("🔵 Imports completed")
 
@@ -162,13 +163,13 @@ async def get_admin_stats(
         print(f"🔵 Goals count: {len(goals)}")
         
         # Calculate total sessions
-        total_sessions = db.query(db.func.sum(User.total_sessions)).scalar() or 0
+        total_sessions = db.query(func.sum(User.total_sessions)).scalar() or 0
         print(f"🔵 Total sessions: {total_sessions}")
         
         # Get activity breakdown by type
         activity_breakdown = db.query(
             Activity.activity_type, 
-            db.func.count(Activity.id).label('count')
+            func.count(Activity.id).label('count')
         ).group_by(Activity.activity_type).all()
         print(f"🔵 Activity breakdown: {activity_breakdown}")
         
