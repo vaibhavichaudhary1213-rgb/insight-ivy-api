@@ -9,13 +9,13 @@ from datetime import datetime, timedelta
 import os
 import secrets
 from typing import Optional
-from sqlalchemy import func 
 
 print("🔵 Imports completed")
 
 # Database import - this might be failing
 try:
     from ..database import SessionLocal, User, Activity, Reflection, Goal
+    from sqlalchemy import func
     print("🔵 Database imports successful")
     print(f"🔵 User model: {User}")
 except Exception as e:
@@ -28,10 +28,38 @@ print(f"🔵 Router created with prefix: {router.prefix}")
 
 security = HTTPBearer(auto_error=False)
 
+# ========== ADMIN AUTHENTICATION DEBUG ==========
+print("🔍" + "="*50)
+print("🔍 ENVIRONMENT VARIABLE DEBUG")
+print("🔍" + "="*50)
+
+# Print all environment variables containing ADMIN or PASSWORD
+admin_env_vars = [k for k in os.environ.keys() if 'ADMIN' in k or 'PASSWORD' in k]
+print(f"🔍 Found admin-related env vars: {admin_env_vars}")
+
+# Get password with multiple methods
+password_from_getenv = os.getenv("ADMIN_PASSWORD")
+password_from_environ = os.environ.get("ADMIN_PASSWORD")
+
+print(f"🔍 ADMIN_PASSWORD from os.getenv: '{password_from_getenv}'")
+print(f"🔍 ADMIN_PASSWORD from os.environ.get: '{password_from_environ}'")
+print(f"🔍 ADMIN_PASSWORD type: {type(password_from_getenv)}")
+print(f"🔍 ADMIN_PASSWORD length: {len(password_from_getenv) if password_from_getenv else 0}")
+
+if password_from_getenv:
+    print(f"🔍 First char: '{password_from_getenv[0]}'")
+    print(f"🔍 Last char: '{password_from_getenv[-1]}'")
+    print(f"🔍 Contains only 'admin123'?: {password_from_getenv == 'admin123'}")
+    print(f"🔍 ASCII values: {[ord(c) for c in password_from_getenv]}")
+
+print("🔍" + "="*50)
+# ===============================================
+
 # Admin authentication
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", secrets.token_urlsafe(32))
 
+print(f"🔵 FINAL ADMIN_PASSWORD value: '{ADMIN_PASSWORD}'")
 print(f"🔵 ADMIN_TOKEN generated: {ADMIN_TOKEN[:10]}...")
 
 # Store tokens in memory
@@ -89,19 +117,43 @@ print("🔵 verify_admin function defined")
 async def admin_login(password: str = Body(..., embed=True)):
     """Login to admin dashboard"""
     print(f"🔵 Login attempt")
+    print(f"🔵 Received password: '{password}'")
+    print(f"🔵 Expected password: '{ADMIN_PASSWORD}'")
+    print(f"🔵 Password match: {password == ADMIN_PASSWORD}")
+    
     if password == ADMIN_PASSWORD:
+        print(f"🔵 Login successful!")
         return {
             "success": True, 
             "token": ADMIN_TOKEN,
             "expires": active_tokens[ADMIN_TOKEN].isoformat()
         }
     
+    print(f"🔴 Login failed - invalid password")
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid password"
     )
 
 print("🔵 /login endpoint registered")
+
+@router.get("/debug-env")
+async def debug_env():
+    """Debug endpoint to check environment variables"""
+    print("🔵 /debug-env called")
+    return {
+        "admin_password_exists": "ADMIN_PASSWORD" in os.environ,
+        "admin_password_from_getenv": os.getenv("ADMIN_PASSWORD"),
+        "admin_password_length": len(os.getenv("ADMIN_PASSWORD", "")),
+        "admin_password_first_char": os.getenv("ADMIN_PASSWORD", "")[:1] if os.getenv("ADMIN_PASSWORD") else None,
+        "admin_password_last_char": os.getenv("ADMIN_PASSWORD", "")[-1] if os.getenv("ADMIN_PASSWORD") else None,
+        "admin_password_equals_admin123": os.getenv("ADMIN_PASSWORD") == "admin123",
+        "all_env_keys": [k for k in os.environ.keys() if 'ADMIN' in k or 'PASSWORD' in k],
+        "active_tokens_count": len(active_tokens),
+        "server_time": datetime.utcnow().isoformat()
+    }
+
+print("🔵 /debug-env endpoint registered")
 
 @router.post("/logout")
 async def admin_logout(authenticated: bool = Depends(verify_admin)):
@@ -110,7 +162,7 @@ async def admin_logout(authenticated: bool = Depends(verify_admin)):
 
 print("🔵 /logout endpoint registered")
 
-# FULL STATS ENDPOINT IMPLEMENTATION
+# FULL STATS ENDPOINT
 @router.get("/stats")
 async def get_admin_stats(
     authenticated: bool = Depends(verify_admin),
@@ -162,11 +214,11 @@ async def get_admin_stats(
         ).limit(20).all()
         print(f"🔵 Goals count: {len(goals)}")
         
-        # Calculate total sessions
+        # Calculate total sessions - FIXED with func
         total_sessions = db.query(func.sum(User.total_sessions)).scalar() or 0
         print(f"🔵 Total sessions: {total_sessions}")
         
-        # Get activity breakdown by type
+        # Get activity breakdown by type - FIXED with func
         activity_breakdown = db.query(
             Activity.activity_type, 
             func.count(Activity.id).label('count')
